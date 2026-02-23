@@ -3,7 +3,7 @@
 **Date:** February 23, 2026
 **Last Updated:** February 23, 2026 — Next.js scaffold complete
 **Status:** Next.js scaffold ready for `npm install && npm run dev`
-**Stack:** Next.js 15 / TypeScript / Tailwind CSS / Anthropic Messages API
+**Stack:** Next.js 15 / TypeScript / Tailwind CSS / NewsAPI.org
 
 ---
 
@@ -29,7 +29,7 @@ The monolithic 831-line artifact has been decomposed into a proper Next.js proje
 ```
 the-digest/                    (22 source files, 1,786 LOC)
 ├── app/
-│   ├── api/news/route.ts      172 LOC  ← Server-side API proxy
+│   ├── api/news/route.ts      178 LOC  ← Server-side API proxy (NewsAPI)
 │   ├── globals.css             73 LOC  ← Tailwind + CSS vars + reset
 │   ├── layout.tsx              30 LOC  ← Metadata, skip-nav, fonts
 │   └── page.tsx                 5 LOC  ← Thin wrapper

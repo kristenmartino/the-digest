@@ -1,6 +1,6 @@
 # The Digest
 
-AI-curated news aggregator powered by Claude and the Anthropic web_search tool. Surfaces the top stories across 6 categories with real-time summaries.
+News aggregator powered by NewsAPI.org. Surfaces the top stories across 6 categories with fast, reliable article fetching.
 
 ## Quick Start
 
@@ -10,9 +10,10 @@ git clone <your-repo-url>
 cd the-digest
 npm install
 
-# 2. Configure API key
+# 2. Configure API keys
 cp .env.local.example .env.local
-# Edit .env.local and add your Anthropic API key
+# Edit .env.local and add your NewsAPI key (required)
+# Get one free at https://newsapi.org/
 
 # 3. Run
 npm run dev
@@ -25,7 +26,7 @@ Open [http://localhost:3000](http://localhost:3000).
 ```
 the-digest/
 ├── app/
-│   ├── api/news/route.ts    # Server-side API proxy (→ Anthropic)
+│   ├── api/news/route.ts    # Server-side API proxy (→ NewsAPI)
 │   ├── globals.css           # Tailwind + CSS variables
 │   ├── layout.tsx            # Root layout, metadata, skip-nav
 │   └── page.tsx              # Home page
@@ -52,9 +53,9 @@ the-digest/
 User clicks category
   → useNewsLoader dispatches fetch to /api/news?category=X
   → API route checks in-memory cache (5min TTL)
-  → If miss: calls Anthropic Messages API with web_search tool
-  → Parses JSON from response (with fallback strategies)
-  → Returns normalized Article[] to client
+  → If miss: calls NewsAPI top-headlines endpoint
+  → Normalizes response to Article[] format
+  → Returns to client (~100-300ms)
   → Client renders ArticleCard grid with animations
 ```
 
@@ -62,9 +63,9 @@ User clicks category
 
 | Decision | Why |
 |----------|-----|
-| Server-side API proxy | API key never reaches the client |
-| "Summarize" prompt framing | Model refuses rigid JSON formatting of search snippets |
-| 3-strategy JSON parser | Handles clean JSON, prose-wrapped, and individual objects |
+| Server-side API proxy | API keys never reach the client |
+| NewsAPI over web scraping | Reliable structured data, fast responses (~100ms) |
+| In-memory cache (5min TTL) | Reduces API calls, stays within free tier limits |
 | Stable URL-based IDs | Bookmarks survive page refresh |
 | CSS variables for theming | Dark/light toggle without class rewrite |
 
@@ -90,7 +91,7 @@ npm i -g vercel
 vercel
 
 # Set environment variable
-vercel env add ANTHROPIC_API_KEY
+vercel env add NEWS_API_KEY
 ```
 
 Or connect your GitHub repo to [vercel.com](https://vercel.com) for automatic deployments on push.
@@ -99,7 +100,8 @@ Or connect your GitHub repo to [vercel.com](https://vercel.com) for automatic de
 
 | Variable | Required | Description |
 |----------|----------|-------------|
-| `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key |
+| `NEWS_API_KEY` | Yes | NewsAPI.org API key ([get one free](https://newsapi.org/)) |
+| `ANTHROPIC_API_KEY` | No | Anthropic API key (for future AI summaries) |
 
 ## Git Workflow
 
@@ -126,6 +128,6 @@ git checkout main && git merge dev && git push origin main
 - **Framework:** Next.js 15 (App Router)
 - **Language:** TypeScript
 - **Styling:** Tailwind CSS + CSS custom properties
-- **AI:** Anthropic Claude Sonnet 4 + web_search tool
+- **News Data:** NewsAPI.org
 - **Testing:** Jest + React Testing Library
 - **Deployment:** Vercel (recommended)
