@@ -20,6 +20,17 @@ export const CATEGORY_QUERIES: Record<CategoryId, string> = {
   health: "health medical wellness news today",
 };
 
+// NewsAPI.org category mapping
+// See: https://newsapi.org/docs/endpoints/top-headlines
+export const NEWSAPI_CATEGORIES: Record<CategoryId, string | null> = {
+  top: "general",
+  technology: "technology",
+  business: "business",
+  science: "science",
+  world: "general", // use country=us param for US news, no country for world
+  health: "health",
+};
+
 // ─── Colors ─────────────────────────────────────────────
 // Using rgb tuples so we can compose with rgba() — no hex+alpha hack
 
