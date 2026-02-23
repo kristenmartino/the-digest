@@ -132,7 +132,7 @@ describe("API Route Logic", () => {
       };
       const textBlocks = response.content.filter((b) => b.type === "text");
       expect(textBlocks).toHaveLength(1);
-      const articles = JSON.parse(textBlocks[0].text);
+      const articles = JSON.parse((textBlocks[0] as { type: "text"; text: string }).text);
       expect(articles).toHaveLength(2);
     });
   });
