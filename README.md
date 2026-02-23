@@ -101,6 +101,26 @@ Or connect your GitHub repo to [vercel.com](https://vercel.com) for automatic de
 |----------|----------|-------------|
 | `ANTHROPIC_API_KEY` | Yes | Your Anthropic API key |
 
+## Git Workflow
+
+```bash
+main              # always deployable, Vercel auto-deploys
+ └── dev          # daily work, merge to main when stable
+      ├── feat/*  # new features (feat/search, feat/pull-to-refresh)
+      └── fix/*   # bug fixes (fix/mobile-layout, fix/parser)
+```
+
+```bash
+# Start new work
+git checkout dev && git checkout -b feat/my-feature
+
+# Finish
+git checkout dev && git merge feat/my-feature && git branch -d feat/my-feature
+
+# Ship to production
+git checkout main && git merge dev && git push origin main
+```
+
 ## Tech Stack
 
 - **Framework:** Next.js 15 (App Router)
