@@ -5,6 +5,7 @@ export type CategoryId =
   | "technology"
   | "business"
   | "science"
+  | "energy"
   | "world"
   | "health";
 

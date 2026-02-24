@@ -76,8 +76,8 @@ describe("API Route Logic", () => {
       expect(CATEGORY_QUERIES).toHaveProperty("technology");
     });
 
-    it("has queries for all 6 categories", () => {
-      const categories = ["top", "technology", "business", "science", "world", "health"];
+    it("has queries for all 7 categories", () => {
+      const categories = ["top", "technology", "business", "science", "energy", "world", "health"];
       categories.forEach((cat) => {
         expect(CATEGORY_QUERIES).toHaveProperty(cat);
         expect(typeof CATEGORY_QUERIES[cat as keyof typeof CATEGORY_QUERIES]).toBe("string");

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { NEWSAPI_CATEGORIES, CACHE_TTL_MS, RATE_LIMIT_MAX } from "@/lib/constants";
+import { NEWSAPI_CATEGORIES, CATEGORY_QUERIES, CACHE_TTL_MS, RATE_LIMIT_MAX } from "@/lib/constants";
 import type { CategoryId, Article, NewsApiResponse, NewsApiError } from "@/lib/types";
 
 // ─── In-Memory Cache ────────────────────────────────────
@@ -114,27 +114,31 @@ export async function GET(request: NextRequest) {
   try {
     const newsCategory = NEWSAPI_CATEGORIES[category];
 
-    // Build URL - use different params for "world" vs other categories
+    // Build URL based on category type
     const params = new URLSearchParams({
       apiKey,
       pageSize: "10",
     });
 
-    if (category === "world") {
+    let url: string;
+
+    if (newsCategory === null) {
+      // Categories without direct NewsAPI mapping use "everything" endpoint
+      params.set("q", CATEGORY_QUERIES[category]);
+      params.set("language", "en");
+      params.set("sortBy", "publishedAt");
+      url = `https://newsapi.org/v2/everything?${params}`;
+    } else if (category === "world") {
       // For world news, don't specify country to get international results
       params.set("category", "general");
       params.set("language", "en");
+      url = `https://newsapi.org/v2/top-headlines?${params}`;
     } else {
       // For other categories, use US top headlines
       params.set("country", "us");
-      if (newsCategory) {
-        params.set("category", newsCategory);
-      }
+      params.set("category", newsCategory);
+      url = `https://newsapi.org/v2/top-headlines?${params}`;
     }
-
-    const url = category === "world"
-      ? `https://newsapi.org/v2/top-headlines?${params}`
-      : `https://newsapi.org/v2/top-headlines?${params}`;
 
     const newsRes = await fetch(url, {
       headers: { "User-Agent": "TheDigest/1.0" },
