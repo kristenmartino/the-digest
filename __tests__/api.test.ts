@@ -80,7 +80,10 @@ describe("API Route Logic", () => {
       const categories = ["top", "technology", "business", "science", "energy", "world", "health"];
       categories.forEach((cat) => {
         expect(CATEGORY_QUERIES).toHaveProperty(cat);
-        expect(typeof CATEGORY_QUERIES[cat as keyof typeof CATEGORY_QUERIES]).toBe("string");
+        const query = CATEGORY_QUERIES[cat as keyof typeof CATEGORY_QUERIES];
+        expect(typeof query.topic).toBe("string");
+        expect(Array.isArray(query.subtopics)).toBe(true);
+        expect(query.subtopics.length).toBeGreaterThan(0);
       });
     });
   });

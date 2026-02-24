@@ -1,5 +1,6 @@
 import { NextRequest, NextResponse } from "next/server";
-import { NEWSAPI_CATEGORIES, CATEGORY_QUERIES, CACHE_TTL_MS, RATE_LIMIT_MAX } from "@/lib/constants";
+import { CATEGORY_QUERIES, CACHE_TTL_MS, RATE_LIMIT_MAX } from "@/lib/constants";
+import { extractJsonArray, normalizeArticle } from "@/lib/utils";
 import type { CategoryId, Article, NewsApiResponse, NewsApiError } from "@/lib/types";
 
 // ─── In-Memory Cache ────────────────────────────────────
@@ -29,46 +30,21 @@ function isRateLimited(ip: string): boolean {
   return false;
 }
 
-// ─── NewsAPI Types ──────────────────────────────────────
+// ─── Prompt ─────────────────────────────────────────────
 
-interface NewsAPIArticle {
-  source: { id: string | null; name: string };
-  author: string | null;
-  title: string;
-  description: string | null;
-  url: string;
-  urlToImage: string | null;
-  publishedAt: string;
-  content: string | null;
-}
+const SYSTEM_PROMPT = `You help users stay informed by summarizing news. When asked about news, search the web, then summarize what you find as a JSON array. Always respond with valid JSON only — no commentary, no markdown, no explanation before or after the JSON.`;
 
-interface NewsAPIResponse {
-  status: string;
-  totalResults: number;
-  articles: NewsAPIArticle[];
-  code?: string;
-  message?: string;
-}
+function buildUserPrompt(topic: string, subtopics: string[]): string {
+  const subtopicList = subtopics.map((s) => `- ${s}`).join("\n");
+  return `Please search for the latest news about: ${topic}
 
-// ─── Article Normalizer ─────────────────────────────────
+Make sure to search across these subtopics for broad coverage:
+${subtopicList}
 
-function normalizeNewsAPIArticle(article: NewsAPIArticle, category: CategoryId, index: number): Article {
-  const summary = article.description || article.content?.slice(0, 200) || "No description available.";
-  // Estimate read time: ~200 words per minute, avg 5 chars per word
-  const wordCount = summary.length / 5;
-  const readTime = Math.max(1, Math.ceil(wordCount / 200));
+After searching, summarize the top 5 stories you found (at least one from each subtopic if possible). Format your response as a JSON array where each item has:
+{"title": "the headline", "summary": "a brief 1-2 sentence summary in your own words", "source_url": "the URL if available, otherwise a best guess like https://reuters.com", "source_name": "the publication name", "published_date": null, "image_url": null}
 
-  return {
-    id: `${category}-${index}-${Date.now()}`,
-    title: article.title || "Untitled",
-    summary,
-    sourceUrl: article.url,
-    sourceName: article.source?.name || "Unknown",
-    publishedDate: article.publishedAt || null,
-    imageUrl: article.urlToImage || null,
-    category,
-    readTime,
-  };
+Prioritize stories from the last 24 hours. Summarize in your own words and make reasonable guesses for any missing fields. Just give me the JSON array, nothing else.`;
 }
 
 // ─── Route Handler ──────────────────────────────────────
@@ -76,9 +52,9 @@ function normalizeNewsAPIArticle(article: NewsAPIArticle, category: CategoryId, 
 export async function GET(request: NextRequest) {
   // Validate category param
   const category = request.nextUrl.searchParams.get("category") as CategoryId;
-  if (!category || !(category in NEWSAPI_CATEGORIES)) {
+  if (!category || !CATEGORY_QUERIES[category]) {
     return NextResponse.json<NewsApiError>(
-      { error: "Invalid category", details: `Must be one of: ${Object.keys(NEWSAPI_CATEGORIES).join(", ")}` },
+      { error: "Invalid category", details: `Must be one of: ${Object.keys(CATEGORY_QUERIES).join(", ")}` },
       { status: 400 }
     );
   }
@@ -102,72 +78,84 @@ export async function GET(request: NextRequest) {
     });
   }
 
-  // Fetch from NewsAPI
-  const apiKey = process.env.NEWS_API_KEY;
+  // Fetch from Anthropic
+  const apiKey = process.env.ANTHROPIC_API_KEY;
   if (!apiKey) {
     return NextResponse.json<NewsApiError>(
-      { error: "Server configuration error", details: "NEWS_API_KEY not set" },
+      { error: "Server configuration error", details: "ANTHROPIC_API_KEY not set" },
       { status: 500 }
     );
   }
 
   try {
-    const newsCategory = NEWSAPI_CATEGORIES[category];
+    const { topic, subtopics } = CATEGORY_QUERIES[category];
 
-    // Build URL based on category type
-    const params = new URLSearchParams({
-      apiKey,
-      pageSize: "10",
+    const anthropicRes = await fetch("https://api.anthropic.com/v1/messages", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        "x-api-key": apiKey,
+        "anthropic-version": "2023-06-01",
+      },
+      body: JSON.stringify({
+        model: "claude-sonnet-4-20250514",
+        max_tokens: 4000,
+        system: SYSTEM_PROMPT,
+        messages: [{ role: "user", content: buildUserPrompt(topic, subtopics) }],
+        tools: [{ type: "web_search_20250305", name: "web_search" }],
+      }),
     });
 
-    let url: string;
-
-    if (newsCategory === null) {
-      // Categories without direct NewsAPI mapping use "everything" endpoint
-      params.set("q", CATEGORY_QUERIES[category]);
-      params.set("language", "en");
-      params.set("sortBy", "publishedAt");
-      url = `https://newsapi.org/v2/everything?${params}`;
-    } else if (category === "world") {
-      // For world news, don't specify country to get international results
-      params.set("category", "general");
-      params.set("language", "en");
-      url = `https://newsapi.org/v2/top-headlines?${params}`;
-    } else {
-      // For other categories, use US top headlines
-      params.set("country", "us");
-      params.set("category", newsCategory);
-      url = `https://newsapi.org/v2/top-headlines?${params}`;
-    }
-
-    const newsRes = await fetch(url, {
-      headers: { "User-Agent": "TheDigest/1.0" },
-    });
-
-    const data: NewsAPIResponse = await newsRes.json();
-
-    if (data.status !== "ok") {
-      console.error(`NewsAPI error [${data.code}]:`, data.message);
+    if (!anthropicRes.ok) {
+      const errorBody = await anthropicRes.text().catch(() => "");
+      console.error(`Anthropic API error [${anthropicRes.status}]:`, errorBody.slice(0, 500));
       return NextResponse.json<NewsApiError>(
-        { error: `NewsAPI error: ${data.code}`, details: data.message || "Unknown error" },
+        { error: `Upstream API error (${anthropicRes.status})`, details: errorBody.slice(0, 200) },
         { status: 502 }
       );
     }
 
-    if (!data.articles || data.articles.length === 0) {
+    const data = await anthropicRes.json();
+
+    // Extract text from response blocks
+    const textBlocks = (data.content || []).filter(
+      (b: { type: string }) => b.type === "text"
+    );
+    const fullText = textBlocks
+      .map((b: { text: string }) => b.text)
+      .join("\n")
+      .replace(/```json|```/g, "")
+      .trim();
+
+    if (!fullText) {
+      const blockTypes = (data.content || [])
+        .map((b: { type: string }) => b.type)
+        .join(", ");
+      console.error("Empty text response. Block types:", blockTypes, "stop_reason:", data.stop_reason);
       return NextResponse.json<NewsApiError>(
-        { error: "No articles found", details: `No news available for category: ${category}` },
-        { status: 404 }
+        {
+          error: "Empty response from AI",
+          details: `stop_reason: ${data.stop_reason || "?"}, blocks: [${blockTypes}]`,
+        },
+        { status: 502 }
       );
     }
 
-    // Filter out articles with "[Removed]" title (NewsAPI returns these for deleted articles)
-    const validArticles = data.articles.filter(
-      (a) => a.title && a.title !== "[Removed]"
-    );
+    // Parse articles
+    const rawArticles = extractJsonArray(fullText);
+    if (!rawArticles || rawArticles.length === 0) {
+      console.error("Parse failure. Text:", fullText.slice(0, 300));
+      return NextResponse.json<NewsApiError>(
+        {
+          error: "Could not parse articles from AI response",
+          details: fullText.slice(0, 200),
+        },
+        { status: 502 }
+      );
+    }
 
-    // Normalize articles
-    const articles = validArticles.map((raw, i) => normalizeNewsAPIArticle(raw, category, i));
+    // Normalize
+    const articles = rawArticles.map((raw, i) => normalizeArticle(raw, category, i));
 
     // Cache
     const fetchedAt = Date.now();

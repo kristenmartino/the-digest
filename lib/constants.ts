@@ -12,14 +12,40 @@ export const CATEGORIES: Category[] = [
   { id: "health", label: "Health", icon: "✦" },
 ];
 
-export const CATEGORY_QUERIES: Record<CategoryId, string> = {
-  top: "top breaking news stories today",
-  technology: "latest technology news today AI startups",
-  business: "business finance market news today",
-  science: "science discoveries research news today",
-  energy: "energy news today renewable solar wind nuclear utilities",
-  world: "world international news today",
-  health: "health medical wellness news today",
+export const CATEGORY_QUERIES: Record<CategoryId, { topic: string; subtopics: string[] }> = {
+  top: {
+    topic: "top breaking news",
+    subtopics: ["major headlines today", "breaking news worldwide"],
+  },
+  technology: {
+    topic: "technology",
+    subtopics: ["AI and machine learning", "tech startups and companies", "software and cybersecurity"],
+  },
+  business: {
+    topic: "business and finance",
+    subtopics: ["stock market and investing", "corporate earnings and deals", "economic policy"],
+  },
+  science: {
+    topic: "science",
+    subtopics: ["scientific discoveries and research", "space and astronomy", "climate and environment"],
+  },
+  energy: {
+    topic: "energy",
+    subtopics: [
+      "electricity grid and power utilities",
+      "renewable energy solar and wind",
+      "energy prices and electricity demand",
+      "NextEra FPL energy companies",
+    ],
+  },
+  world: {
+    topic: "world news",
+    subtopics: ["international politics and diplomacy", "global conflicts and security", "regional developments"],
+  },
+  health: {
+    topic: "health",
+    subtopics: ["medical breakthroughs and research", "public health and policy", "wellness and nutrition"],
+  },
 };
 
 // NewsAPI.org category mapping
