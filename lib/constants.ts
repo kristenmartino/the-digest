@@ -88,8 +88,8 @@ export const GRADIENTS: Record<CategoryId, string> = {
 
 export const API_TIMEOUT_MS = 30_000;
 export const SLOW_THRESHOLD_MS = 8_000;
-export const CACHE_TTL_MS = 5 * 60 * 1000; // 5 minutes server-side
-export const RATE_LIMIT_MAX = 10; // requests per minute per IP
+export const CACHE_TTL_MS = 15 * 60 * 1000; // 15 minutes server-side
+export const RATE_LIMIT_MAX = 30; // requests per minute per IP
 
 // ─── Storage Keys ───────────────────────────────────────
 
