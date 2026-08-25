@@ -3,14 +3,31 @@ import { notFound } from "next/navigation";
 
 import BillDossier from "@/components/bill/BillDossier";
 import JsonLd from "@/components/JsonLd";
-import { getBillById, getPoliticianByBioguide } from "@/lib/db";
+import { getBillById, getPoliticianByBioguide, listDossierParams } from "@/lib/db";
 import { formatBillIdDisplay } from "@/lib/bill";
 import { dossierMetadata } from "@/lib/metadata";
 import { isPublishableBill } from "@/lib/publishFloor";
 import { billJsonLd } from "@/lib/structuredData";
 
-// ISR — same heartbeat as the other dossier routes.
-export const revalidate = 1800;
+// ISR — 24 hours, same reasoning as the other profile-only dossiers: sized
+// to the crawl interval, not to a heartbeat that expired between sweeps.
+export const revalidate = 86400;
+
+/**
+ * Prerender the publishable bill dossiers at build time.
+ *
+ * These pages are crawler-facing by design — they are advertised in
+ * sitemap.xml — and until this existed none of them were prebuilt, so a
+ * crawler sweep across the set generated every one on demand. `dynamicParams`
+ * is left at its default of true: a dossier below the publish floor is not
+ * prebuilt and still renders on first request, exactly as before.
+ */
+export async function generateStaticParams(): Promise<
+  Array<{ id: string }>
+> {
+  const params = await listDossierParams("bill");
+  return params.map((id) => ({ id }));
+}
 
 interface BillRouteProps {
   params: Promise<{ id: string }>;

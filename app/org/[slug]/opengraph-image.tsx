@@ -3,8 +3,11 @@ import { OG_SIZE } from "@/lib/og";
 import { createDossierOgImage } from "@/lib/ogImage";
 import { formatOrgTypeLabel } from "@/lib/org";
 
-// Same heartbeat as the page — the unfurl should never outlive the dossier.
-export const revalidate = 1800;
+// Satellite-cached with its dossier (24h). Rendering an OG card is one of the
+// most CPU-expensive things this app does per invocation, and the card is
+// derived from the same slow-moving profile row the page is — there is no
+// version of this image that needed re-deriving every 30 minutes.
+export const revalidate = 86400;
 export const size = OG_SIZE;
 export const contentType = "image/png";
 export const alt = "Organization dossier on Sift — the news, with footnotes";

@@ -3,9 +3,10 @@ import type { Metadata } from "next";
 import SelfDescriptions from "@/components/thinkTanks/SelfDescriptions";
 import { listSelfDescribedOrgs } from "@/lib/db";
 
-// ISR — a self-description changes when an organization rewrites its About
-// page, which is rare. Matches the rest of the civic surface.
-export const revalidate = 1800;
+// ISR — 24 hours, traced to this page's own declared `changeFrequency` in
+// app/sitemap.ts (weekly or monthly). A 30-minute entry asserted a cadence
+// several orders of magnitude faster than the one we advertise to crawlers.
+export const revalidate = 86400;
 
 // The page title carries NO brand: app/layout.tsx sets
 // `template: "%s | Sift"`, so hardcoding "— Sift" here rendered

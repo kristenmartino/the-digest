@@ -4,16 +4,33 @@ import { notFound } from "next/navigation";
 import JsonLd from "@/components/JsonLd";
 import TermDossier from "@/components/term/TermDossier";
 import { mapArticleRows } from "@/lib/articleMapping";
-import { getRecentArticlesByTerm, getTermBySlug, getTermCoverage } from "@/lib/db";
+import { getRecentArticlesByTerm, getTermBySlug, getTermCoverage, listDossierParams } from "@/lib/db";
 import { dossierMetadata } from "@/lib/metadata";
 import { isPublishableTerm } from "@/lib/publishFloor";
 import { termJsonLd } from "@/lib/structuredData";
 import type { Article } from "@/lib/types";
 
-// ISR — same 30-minute heartbeat as the other dossiers. The definition half
-// changes when a human edits the CSV; the coverage half moves every pipeline
-// cycle, which is the side that sets the cadence.
-export const revalidate = 1800;
+// ISR — 6 hours, matching the outlet dossier rather than the profile-only
+// 24h. The definition half changes when a human edits the CSV; the coverage
+// half moves every pipeline cycle, and as before that is the side setting the
+// cadence — it just does not need re-deriving twice an hour.
+export const revalidate = 21600;
+
+/**
+ * Prerender the publishable term dossiers at build time.
+ *
+ * These pages are crawler-facing by design — they are advertised in
+ * sitemap.xml — and until this existed none of them were prebuilt, so a
+ * crawler sweep across the set generated every one on demand. `dynamicParams`
+ * is left at its default of true: a dossier below the publish floor is not
+ * prebuilt and still renders on first request, exactly as before.
+ */
+export async function generateStaticParams(): Promise<
+  Array<{ slug: string }>
+> {
+  const params = await listDossierParams("term");
+  return params.map((slug) => ({ slug }));
+}
 
 interface TermRouteProps {
   params: Promise<{ slug: string }>;

@@ -3,17 +3,34 @@ import { notFound } from "next/navigation";
 
 import OrgDossier from "@/components/org/OrgDossier";
 import JsonLd from "@/components/JsonLd";
-import { getFundingEdgesForOrg, getOrgBySlug } from "@/lib/db";
+import { getFundingEdgesForOrg, getOrgBySlug, listDossierParams } from "@/lib/db";
 import { dossierMetadata } from "@/lib/metadata";
 import { reportError } from "@/lib/observability";
 import { einFromOrgLinks } from "@/lib/org";
 import { isPublishableOrg } from "@/lib/publishFloor";
 import { orgJsonLd } from "@/lib/structuredData";
 
-// ISR — same heartbeat as the landing + outlet/politician dossiers.
-// Org metadata changes slowly (annual budgets refresh on 990 cycles,
-// FARA registrations are sporadic), so 1800s is well-matched.
-export const revalidate = 1800;
+// ISR — 24 hours, same reasoning as the politician dossier: sized to the
+// crawl interval rather than to a 30-minute heartbeat that always expired
+// before the next visit. Org metadata is the slowest-moving of the set
+// (annual budgets refresh on 990 cycles, FARA registrations are sporadic).
+export const revalidate = 86400;
+
+/**
+ * Prerender the publishable org dossiers at build time.
+ *
+ * These pages are crawler-facing by design — they are advertised in
+ * sitemap.xml — and until this existed none of them were prebuilt, so a
+ * crawler sweep across the set generated every one on demand. `dynamicParams`
+ * is left at its default of true: a dossier below the publish floor is not
+ * prebuilt and still renders on first request, exactly as before.
+ */
+export async function generateStaticParams(): Promise<
+  Array<{ slug: string }>
+> {
+  const params = await listDossierParams("org");
+  return params.map((slug) => ({ slug }));
+}
 
 interface OrgRouteProps {
   params: Promise<{ slug: string }>;

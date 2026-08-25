@@ -1437,6 +1437,42 @@ export async function listSitemapEntries(): Promise<SitemapEntry[]> {
   }
 }
 
+/**
+ * Dossier params to prerender at build time, for one route's URL prefix.
+ *
+ * Derived from `listSitemapEntries` rather than queried directly, and that is
+ * deliberate: the publish floor already has exactly two implementations (that
+ * query and the predicates in `lib/publishFloor.ts`) under an invariant that
+ * says change one, change the other. A third copy here would make that pair a
+ * trio. Prerendering the advertised set and only the advertised set also keeps
+ * the two questions aligned — the URLs we ask Google to crawl are exactly the
+ * URLs we pay to build once instead of on every crawl.
+ *
+ * Thin rows are intentionally absent, and that costs them nothing. Next's
+ * `dynamicParams` defaults to true and is left alone, so anything not returned
+ * here still renders on demand exactly as before; it just isn't prebuilt.
+ *
+ * Fails open to `[]`. A build that cannot reach the database should ship a
+ * slower site, not no site — an empty list is precisely the pre-prerender
+ * behaviour, every dossier generated on first request.
+ *
+ * @param prefix Route segment without slashes, e.g. `"politician"`.
+ * @returns The trailing path segment for each publishable dossier of that type.
+ */
+export async function listDossierParams(prefix: string): Promise<string[]> {
+  const head = `/${prefix}/`;
+  try {
+    const entries = await listSitemapEntries();
+    return entries
+      .filter((e) => e.path.startsWith(head))
+      .map((e) => e.path.slice(head.length))
+      .filter((segment) => segment.length > 0);
+  } catch (err) {
+    reportError("db.listDossierParams", err, { level: "warning" });
+    return [];
+  }
+}
+
 // ─── Outlet Dossier (Phase 2.C.1) ──────────────────────
 
 /**

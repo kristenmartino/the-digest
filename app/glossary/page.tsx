@@ -3,10 +3,10 @@ import type { Metadata } from "next";
 import TermIndex from "@/components/term/TermIndex";
 import { countDefinedTerms, listPublishedTerms } from "@/lib/db";
 
-// ISR — the definitions change when a human edits the CSV, but the coverage
-// counts move every pipeline cycle, and they are what the page argues from.
-// 30 minutes matches the rest of the civic surface.
-export const revalidate = 1800;
+// ISR — 24 hours, traced to this page's own declared `changeFrequency` in
+// app/sitemap.ts (weekly or monthly). A 30-minute entry asserted a cadence
+// several orders of magnitude faster than the one we advertise to crawlers.
+export const revalidate = 86400;
 
 // The page title carries NO brand: app/layout.tsx sets
 // `template: "%s | Sift"`, so hardcoding "— Sift" here rendered

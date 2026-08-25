@@ -1,0 +1,1 @@
+2026-08-25 [fixture-state-not-supported-state] Adding term_profiles to ci/build-db-schema.sql with only the publish-floor column subset broke the /glossary prerender, because the table being ABSENT was a supported degrade path while the table existing with missing columns is a hard error — ref: branch claude/cut-fluid-cpu.

@@ -4,16 +4,33 @@ import { notFound } from "next/navigation";
 import OutletDossier from "@/components/outlet/OutletDossier";
 import JsonLd from "@/components/JsonLd";
 import { mapArticleRows } from "@/lib/articleMapping";
-import { getOutletBySlug, getRecentArticlesByOutletSlug } from "@/lib/db";
+import { getOutletBySlug, getRecentArticlesByOutletSlug, listDossierParams } from "@/lib/db";
 import { dossierMetadata } from "@/lib/metadata";
 import { isPublishableOutlet } from "@/lib/publishFloor";
 import { outletJsonLd } from "@/lib/structuredData";
 import type { Article } from "@/lib/types";
 
-// ISR — same heartbeat as the landing page (30 minutes). The dossier reads
-// curated metadata that changes quarterly + recent articles that change every
-// pipeline cycle, so a 1800s edge cache is well-matched on both sides.
-export const revalidate = 1800;
+// ISR — 6 hours, not the 24 the profile-only dossiers get. This route is the
+// only dossier that renders an article list, and that half moves every
+// pipeline cycle, so it sets the cadence. 6h still cuts regeneration 12x
+// against the old 1800s without letting the article list go a day stale.
+export const revalidate = 21600;
+
+/**
+ * Prerender the publishable outlet dossiers at build time.
+ *
+ * These pages are crawler-facing by design — they are advertised in
+ * sitemap.xml — and until this existed none of them were prebuilt, so a
+ * crawler sweep across the set generated every one on demand. `dynamicParams`
+ * is left at its default of true: a dossier below the publish floor is not
+ * prebuilt and still renders on first request, exactly as before.
+ */
+export async function generateStaticParams(): Promise<
+  Array<{ slug: string }>
+> {
+  const params = await listDossierParams("outlet");
+  return params.map((slug) => ({ slug }));
+}
 
 interface DossierRouteProps {
   params: Promise<{ slug: string }>;
