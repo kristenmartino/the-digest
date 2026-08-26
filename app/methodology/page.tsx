@@ -13,11 +13,10 @@ export const metadata: Metadata = {
     "How Sift selects outlets, surfaces ownership and funding, cites AllSides and MBFC ratings, and applies symmetric treatment across the political spectrum.",
 };
 
-// ISR — methodology copy itself is static, but the live outlet list reads
-// from outlet_profiles which changes when new outlets are curated. Same
-// 30-minute heartbeat as the landing keeps the list fresh without paying
-// the DB cost on every visit.
-export const revalidate = 1800;
+// ISR — 24 hours, traced to this page's own declared `changeFrequency` in
+// app/sitemap.ts (weekly or monthly). A 30-minute entry asserted a cadence
+// several orders of magnitude faster than the one we advertise to crawlers.
+export const revalidate = 86400;
 
 type BucketKey = CrossSpectrumBucket | "unrated";
 

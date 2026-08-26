@@ -10,9 +10,10 @@ export const metadata: Metadata = {
     "How Sift is built. Stack, architecture, and credits for the AI-curated news aggregator.",
 };
 
-// ISR — the architecture note carries the live curated-outlet count, read from
-// outlet_profiles. Same 30-minute heartbeat as the landing + methodology.
-export const revalidate = 1800;
+// ISR — 24 hours, traced to this page's own declared `changeFrequency` in
+// app/sitemap.ts (weekly or monthly). A 30-minute entry asserted a cadence
+// several orders of magnitude faster than the one we advertise to crawlers.
+export const revalidate = 86400;
 
 const STACK = [
   { name: "Next.js 15", role: "Frontend & App Router on Vercel" },

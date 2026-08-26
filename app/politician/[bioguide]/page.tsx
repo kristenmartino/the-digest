@@ -3,16 +3,35 @@ import { notFound } from "next/navigation";
 
 import PoliticianDossier from "@/components/politician/PoliticianDossier";
 import JsonLd from "@/components/JsonLd";
-import { getPoliticianByBioguide } from "@/lib/db";
+import { getPoliticianByBioguide, listDossierParams } from "@/lib/db";
 import { dossierMetadata } from "@/lib/metadata";
 import { isPublishablePolitician } from "@/lib/publishFloor";
 import { politicianJsonLd } from "@/lib/structuredData";
 
-// ISR — same heartbeat as the landing + outlet dossier (30 minutes).
-// Politician metadata changes slowly (committees shift quarterly,
-// donor/voting data updates daily via the Phase 3.E refresh job), so a
-// 1800s edge cache is well-matched on both sides.
-export const revalidate = 1800;
+// ISR — 24 hours. The old 1800s was matched to the *content*, which is
+// right in isolation and wrong against the access pattern: with ~650 distinct
+// dossier URLs and crawler traffic that visits each one about once per sweep,
+// a 30-minute entry has always expired before the next hit, so every crawl
+// paid a full render. A day-long entry survives between sweeps. Nothing here
+// moves faster than that anyway — committees shift quarterly, donor/voting
+// data lands on a daily refresh job.
+export const revalidate = 86400;
+
+/**
+ * Prerender the publishable politician dossiers at build time.
+ *
+ * These pages are crawler-facing by design — they are advertised in
+ * sitemap.xml — and until this existed none of them were prebuilt, so a
+ * crawler sweep across the set generated every one on demand. `dynamicParams`
+ * is left at its default of true: a dossier below the publish floor is not
+ * prebuilt and still renders on first request, exactly as before.
+ */
+export async function generateStaticParams(): Promise<
+  Array<{ bioguide: string }>
+> {
+  const params = await listDossierParams("politician");
+  return params.map((bioguide) => ({ bioguide }));
+}
 
 interface PoliticianRouteProps {
   params: Promise<{ bioguide: string }>;

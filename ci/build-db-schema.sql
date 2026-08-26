@@ -17,6 +17,13 @@
 --   listAllBillsLite       -> bill_profiles        (app/civic/page.tsx)
 -- Keep in sync with those query functions in sift/lib/db.ts.
 --
+-- The dossier routes (/politician, /org, /bill, /outlet, /term) additionally
+-- prerender via generateStaticParams -> listDossierParams -> listSitemapEntries,
+-- so that query's publish-floor columns are declared below too. It returns zero
+-- rows here like everything else; what matters is that it EXECUTES, because a
+-- query that errors is caught and failed open to zero params, which looks
+-- identical to an empty result and would let a broken prerender path pass CI.
+--
 -- Tables are intentionally EMPTY: prerender only needs the queries to execute
 -- (returning zero rows), not real data. Only the columns each query selects,
 -- filters, or orders by are declared.
@@ -96,7 +103,8 @@ CREATE TABLE IF NOT EXISTS outlet_profiles (
   mbfc_last_checked     DATE,
   major_funders         JSONB,
   external_links        JSONB,
-  notes                 TEXT
+  notes                 TEXT,
+  updated_at            TIMESTAMPTZ
 );
 
 -- "/civic" politician index — listAllPoliticiansLite()
@@ -105,7 +113,14 @@ CREATE TABLE IF NOT EXISTS politician_profiles (
   name        TEXT,
   party       TEXT,
   state       TEXT,
-  chamber     TEXT
+  chamber     TEXT,
+  -- Publish-floor columns, read by listSitemapEntries() at build time.
+  committees                    JSONB,
+  top_industries_current_cycle  JSONB,
+  role_title                    TEXT,
+  role_title_source             TEXT,
+  role_verified_at              DATE,
+  updated_at                    TIMESTAMPTZ
 );
 
 -- "/civic" organization index — listAllOrgsLite(); the rest of the columns
@@ -128,7 +143,8 @@ CREATE TABLE IF NOT EXISTS org_profiles (
   self_description_source TEXT,
   self_description_checked DATE,
   governance_structure    TEXT,
-  governance_source       TEXT
+  governance_source       TEXT,
+  updated_at              TIMESTAMPTZ
 );
 
 -- "/org/[slug]" money paid out — getFundingEdgesForOrg(). Mirrors sift-api
@@ -156,5 +172,40 @@ CREATE TABLE IF NOT EXISTS bill_profiles (
   congress        INTEGER,
   short_title     TEXT,
   status          TEXT,
-  introduced_date DATE
+  introduced_date DATE,
+  external_links  JSONB,
+  updated_at      TIMESTAMPTZ
+);
+
+-- Dossier prerender + sitemap — listSitemapEntries(), via listDossierParams();
+-- also /glossary (listPublishedTerms) and /term/[slug] (getTermBySlug).
+--
+-- Declared because the publish-floor query UNIONs a /term/ branch, and that
+-- query now runs at build time for every dossier route's generateStaticParams.
+-- Left out, the whole UNION fails on a missing relation and every dossier
+-- route fails open to zero params — which is indistinguishable from an empty
+-- result, so CI would silently stop covering the prerender path.
+--
+-- ⚠️ This does cost one thing, and it is the tradeoff the header note warns
+-- about: `term_profiles` being ABSENT is a supported runtime state
+-- (`isMissingSchemaObject(err, "term_profiles")` in lib/db.ts) and a build
+-- against this fixture no longer exercises it. That is why EVERY column the
+-- three term queries touch is declared here — a table that exists with the
+-- wrong columns is not a supported state, it is a missing-column error that
+-- takes the build down, which is exactly what happened when this table was
+-- first added with only the publish-floor subset.
+CREATE TABLE IF NOT EXISTS term_profiles (
+  slug                 TEXT PRIMARY KEY,
+  term                 TEXT,
+  definition           TEXT,
+  definition_source    TEXT,
+  definition_checked   DATE,
+  aliases              JSONB,
+  category             TEXT,
+  notes                TEXT,
+  article_count        INTEGER,
+  outlet_count         INTEGER,
+  unnamed_count        INTEGER,
+  coverage_computed_at TIMESTAMPTZ,
+  updated_at           TIMESTAMPTZ
 );

@@ -1,6 +1,6 @@
 # Sift — STATUS
 
-**Updated:** 2026-08-17
+**Updated:** 2026-08-25
 **Tier:** v1.5 (civic-literacy pivot) — **feature work active** (un-paused 2026-08-05)
 **Velocity:** **27 PRs merged 2026-08-05** (24 `sift-api`, 3 `sift`) — the largest single day in the project's history, against a six-week gap that ended 2026-07-30. By month: Mar 44 · Apr 39 · May 51 · Jun 13 · Jul 3. This line has twice been wrong in the *optimistic* direction (it read "High (10+ PRs / week)" through eight weeks of near-zero — see [`docs/LAUNCH_DECISION_MEMO.md`](./docs/LAUNCH_DECISION_MEMO.md) §2.5); treat a single day as a day, not a baseline.
 
@@ -168,6 +168,8 @@ to stay current.
 
 **Entries before 2026-08-13 are archived** in [`docs/STATUS_ARCHIVE.md`](docs/STATUS_ARCHIVE.md). This section
 held 37 entries going back to 2026-05-20.
+
+- **2026-08-25** — **Dossiers are prebuilt and middleware is scoped to the seven paths that read a session** ([`docs/DECISIONS.md`](./docs/DECISIONS.md) D62). Vercel warned the Hobby team was at **75% of its 4-hour Fluid Active CPU** allowance. A 24h log sample found **822 middleware + 816 function invocations against 10 cache entries**, spread across **783 distinct paths at ~1 hit each** — a crawler walking the sitemap it was built to attract. `revalidate = 1800` was already on every dossier and was losing anyway: nothing was prebuilt, each of ~650 URLs is its own cache entry so a 30-minute TTL never survives to the next sweep, and the old catch-all matcher ran Clerk on all of them — a cost an ISR hit does not avoid. Fixed by `generateStaticParams` (derived from the existing publish-floor query, not a third copy of it), TTLs sized to the crawl interval, and a matcher listing only the paths that call `auth()`. **Per-project CPU attribution is inferred from traffic, not read from the usage meter** — no API exposes it.
 
 - **2026-08-17** — **`@testing-library/jest-dom` bumped to 7.0.0; `typescript` stays pinned at 6.0.3 — TS 7's compiler API broke the suite's own integrity guard.** ([#195](https://github.com/kristenmartino/sift/pull/195) merged; [#194](https://github.com/kristenmartino/sift/pull/194) left open.)
 

@@ -1,0 +1,1 @@
+2026-08-25 [verification-instrument] A base-vs-branch build comparison used a grep whose pattern matched no lines, so both route tables were empty files and the resulting empty diff read as "prerendering changed nothing" when it had not been measured at all — ref: branch claude/cut-fluid-cpu.

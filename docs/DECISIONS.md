@@ -1033,3 +1033,21 @@ Tracked here so they don't get lost between session restarts. Promoted to settle
 
 **Source:** `sift-api` #243 / #264 / #265; `LAUNCH_DECISION_MEMO.md` §2.2(b), B2; `GROWTH_STRATEGY.md` §4(d), corrected in the same change.
 **Cost:** $0 to decide.
+
+### D62. Dossiers are prebuilt, and middleware runs only where a session is read
+**Decision (status: SETTLED, Aug 2026):** the ~650 sitemap-advertised dossier URLs are prerendered at deploy time via `generateStaticParams`, their ISR TTLs are sized to the crawl interval rather than to the content, and `clerkMiddleware()` matches only the seven paths that actually read a session.
+
+**What prompted it.** Vercel warned that the free Hobby team had used **75% of its 4-hour Fluid Active CPU allowance**. A 24h sample of the project's runtime logs on 2026-08-25 found **822 middleware invocations and 816 function invocations**, all HTTP 200, against **10 cache entries** — near-total `cache=MISS`. By route: 641 `/politician/[bioguide]`, 111 `/org/[slug]`, 23 `/bill/[id]`, spread across **783 distinct paths at roughly one hit each**. That is a crawler walking the sitemap, which is the traffic the sitemap was built to attract.
+
+**Why ISR was already there and already losing.** Every dossier route carried `revalidate = 1800`, sized honestly to its content. The access pattern defeated it three ways, and only the third is obvious in hindsight:
+1. **Nothing was prebuilt.** No route had `generateStaticParams`, so all ~650 URLs were generated on demand.
+2. **Each URL is its own cache entry.** A 30-minute TTL only pays off when the *same* path is hit twice inside the window; a crawl that visits each URL once per sweep finds every entry cold.
+3. **Middleware is billed whether or not the page cache hits.** The old negative matcher (`everything that is not a static asset`) ran Clerk on all ~650 dossier pages, none of which read a session. Middleware ≈ function in the counts above because *both* ran on nearly every request — so half the bill sat where no amount of caching could reach it.
+
+**The floor is reused, not re-expressed.** `generateStaticParams` derives from `listSitemapEntries` via `listDossierParams` rather than querying directly. The publish floor already has exactly two implementations under a "change one, change the other" invariant; a third would make that a trio. This also aligns two questions that should agree: the URLs advertised to crawlers are exactly the URLs prebuilt for them. `dynamicParams` is left at its default, so a sub-floor dossier still renders on demand — it just is not prebuilt.
+
+**Considered and rejected: blocking the crawlers.** A firewall rule or `crawlDelay` would have cut the same traffic in an afternoon. The sitemap exists deliberately (`GROWTH_STRATEGY.md`); the crawl is the growth plan working. Prerendering keeps the indexing and stops paying SSR for it.
+
+**What is measured and what is inferred.** The traffic counts are measured. **Per-project CPU attribution is inferred, not read** — no API exposes the usage meter, so the dashboard Usage page is the instrument that would confirm it. Vercel Hobby runtime-log retention is ~1 day (verified: a 7-day query returned 821/815 against the 24h 822/816, the same rows), so "the other 15 projects were idle" is a claim about 24 hours, not about the billing cycle.
+
+**Cost:** $0. Prevents the Hobby overage that would otherwise pause every project on the team.
